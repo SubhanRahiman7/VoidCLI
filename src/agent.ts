@@ -1,6 +1,8 @@
 import ora from "ora";
 import { readdir } from "node:fs/promises";
 import path from "node:path";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { executeTool } from "./tools.js";
 import { callGemini } from "./vertex.js";
 import { logCheckpoint, logObserve, logOutput, logStart, logThink, logTool } from "./theme.js";
@@ -186,6 +188,8 @@ export async function runAgent(userInput: string): Promise<AgentRunResult> {
   let dynamicMaxSteps = estimateInitialStepBudget(userInput);
   let stepCount = 1;
 
+const execFileAsync = promisify(execFile);
+
   const attachPreviewIfPossible = async (baseMessage: string): Promise<string> => {
     const indexFiles = Array.from(generatedFiles).filter((f) => f.endsWith("/index.html"));
     const indexPath = indexFiles.sort().at(-1);
@@ -196,12 +200,25 @@ export async function runAgent(userInput: string): Promise<AgentRunResult> {
       path: previewPath,
       port: 3000
     });
+    
+    const finalUrl = previewResult.previewUrl || "http://127.0.0.1:3000";
+    
+    // Give the server time to start up and only open after the agent is done generating
+    setTimeout(() => {
+      try {
+        execFileAsync(
+          process.platform === "darwin" ? "open" : process.platform === "win32" ? "cmd" : "xdg-open", 
+          process.platform === "darwin" ? [finalUrl] : process.platform === "win32" ? ["/c", "start", "", finalUrl] : [finalUrl]
+        );
+      } catch {}
+    }, 1000);
+
     logObserve(previewResult.content);
     messages.push({
       role: "developer",
       content: JSON.stringify({ step: "OBSERVE", content: previewResult.content })
     });
-    return `${baseMessage}\n🌐 Preview: http://127.0.0.1:3000\n📂 Output Directory: ${previewPath}/`;
+    return `${baseMessage}\n🌐 Preview: ${finalUrl}\n📂 Output Directory: ${previewPath}/`;
   };
 
   while (stepCount <= dynamicMaxSteps) {

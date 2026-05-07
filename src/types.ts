@@ -45,6 +45,7 @@ export type ToolResult = {
   ok: boolean;
   content: string;
   generatedFile?: string;
+  previewUrl?: string;
 };
 
 export type AgentRunResult = {

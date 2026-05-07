@@ -2,6 +2,7 @@ import path from "node:path";
 import { mkdir, writeFile, readFile, readdir } from "node:fs/promises";
 import { execFile, spawn, ChildProcess } from "node:child_process";
 import { promisify } from "node:util";
+import net from "node:net";
 import {
   DownloadAssetArgsSchema,
   EnsureDirArgsSchema,
@@ -34,6 +35,20 @@ let previewPort: number | null = null;
 let latestFetchedHtml: string | null = null;
 let latestFetchedUrl: string | null = null;
 let latestRewrittenHtml: string | null = null;
+
+async function getFreePort(startPort: number): Promise<number> {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    server.unref();
+    server.on("error", () => {
+      resolve(getFreePort(startPort + 1));
+    });
+    server.listen(startPort, "127.0.0.1", () => {
+      const port = (server.address() as net.AddressInfo).port;
+      server.close(() => resolve(port));
+    });
+  });
+}
 
 function ensureInWorkspace(inputPath: string): string {
   const fullPath = path.resolve(WORKSPACE_ROOT, inputPath);
@@ -133,22 +148,22 @@ async function startPreviewServerTool(rawArgs: unknown): Promise<ToolResult> {
   }
 
   const fullPath = ensureInGenerated(parsed.data.path);
-  const port = parsed.data.port ?? 3000;
-  const url = `http://127.0.0.1:${port}`;
+  let port = parsed.data.port ?? 3000;
 
-  if (
-    previewProcess &&
-    !previewProcess.killed &&
-    previewUrl === url &&
-    previewRoot === fullPath &&
-    previewPort === port
-  ) {
-    return { ok: true, content: `Preview already running at ${url}` };
+  if (previewProcess && !previewProcess.killed && previewRoot === fullPath) {
+    return { 
+      ok: true, 
+      content: `Preview already running at ${previewUrl}`,
+      previewUrl: previewUrl!
+    };
   }
 
   if (previewProcess && !previewProcess.killed) {
     previewProcess.kill("SIGTERM");
   }
+
+  port = await getFreePort(port);
+  const url = `http://127.0.0.1:${port}`;
 
   const child = spawn(
     process.platform === "win32" ? "npx.cmd" : "npx",
@@ -166,15 +181,10 @@ async function startPreviewServerTool(rawArgs: unknown): Promise<ToolResult> {
   previewRoot = fullPath;
   previewPort = port;
 
-  try {
-    await execFileAsync(process.platform === "darwin" ? "open" : process.platform === "win32" ? "cmd" : "xdg-open", process.platform === "darwin" ? [url] : process.platform === "win32" ? ["/c", "start", "", url] : [url]);
-  } catch {
-    // Non-fatal: server should still be running.
-  }
-
   return {
     ok: true,
-    content: `Preview available at ${url}\nOutput directory: ${toRelative(fullPath)}`
+    content: `Preview available at ${url}\nOutput directory: ${toRelative(fullPath)}`,
+    previewUrl: url
   };
 }
 
