@@ -1,6 +1,6 @@
 # VOIDCLI
 
-A conversational terminal AI agent (Gemini via Vertex AI) that follows a strict ReAct-style loop:
+A powerful, conversational terminal AI agent built on Vertex AI Gemini. VOIDCLI operates on a strict ReAct-style loop:
 
 - `START`
 - `THINK`
@@ -8,107 +8,80 @@ A conversational terminal AI agent (Gemini via Vertex AI) that follows a strict 
 - `OBSERVE`
 - `OUTPUT`
 
-It can generate a Scaler Academy-style webpage clone with:
+## Features
 
-- Header
-- Hero section
-- Footer
+### 🌐 Intelligent Website Cloning
+VOIDCLI can instantly clone the homepage of a website by simply providing a URL:
+- Fetches static HTML from the target website.
+- Smartly extracts and downloads CSS, JS, and image assets (including responsive `srcset` and CSS background images).
+- Rewrites all asset links to use local, relative paths.
+- Automatically handles folder structuring (e.g., `generated/website clone/`).
+- Strips out malicious or unwanted JavaScript redirects.
 
-Output files:
+### 💻 UI Generation & Editing
+You can ask VOIDCLI to generate web pages from scratch or modify existing clones:
+- Generates `index.html`, `style.css`, and `script.js` based on your prompts.
+- Target specific changes (e.g., "change the hero heading to say 'Welcome'").
 
-- `generated/scaler-academy-clone/index.html`
-- `generated/scaler-academy-clone/style.css`
-- `generated/scaler-academy-clone/script.js`
-
-It also supports a **checkpoint URL-clone capability** (homepage only):
-- fetch homepage HTML
-- extract CSS/JS/image assets
-- download assets locally under `generated/scaler-academy-clone/assets/`
-- rewrite asset links to local relative paths
-
-It can also start a local preview server from the agent loop:
-- `startPreviewServer({ path, port })`
-- example preview URL: `http://127.0.0.1:3000`
-- default behavior: if `index.html` is generated in `generated/scaler-academy-clone/`, preview auto-starts on port `3000`
+### 🚀 Built-in Local Preview Server
+VOIDCLI can automatically spin up a local development server so you can instantly preview the generated or cloned sites.
+- Starts an HTTP server on port `3000`.
+- Automatically opens your default browser to the preview.
 
 ## Tech Stack
 
-- Node.js
-- TypeScript
-- Vertex AI Gemini
-- `fs/promises`
-- Chalk / Ora / Boxen (terminal UI)
-- Zod (schema validation)
+- Node.js & TypeScript
+- Google Vertex AI (Gemini)
+- `cheerio` (HTML parsing and manipulation)
+- `axios` (Asset downloading)
+- `ora`, `chalk`, `boxen` (Terminal UI)
+- `zod` (Strict schema validation)
 
 ## Setup
 
 1. Install dependencies:
-
 ```bash
 npm install
 ```
 
-2. Create `.env` from `.env.example` and set:
-
+2. Configure your environment. Create a `.env` file from `.env.example`:
 ```env
-GCP_CREDENTIALS_PATH=/Users/subhanrahiman/Desktop/Desktop pro /lolle/gcp.json
+GCP_CREDENTIALS_PATH=/path/to/your/gcp-service-account.json
 GOOGLE_CLOUD_LOCATION=global
 ```
 
-3. Run in dev mode:
-
+3. Run the CLI:
 ```bash
 npm run dev
 ```
 
-## Example Prompt
+## Example Usage
 
+**Clone a website:**
 ```text
-Create a folder named scaler-academy-clone and generate index.html, style.css, and script.js to resemble the Scaler Academy homepage with a modern header, hero, and footer.
+> clone https://example.com
 ```
 
-You can also use short inputs now (website-generation persona defaults):
-
+**Generate a webpage from scratch:**
 ```text
-https://www.scaler.com/school-of-technology
+> Create a landing page for a coffee shop with a modern hero section, dark mode styling, and a footer.
 ```
 
+**Modify an existing clone:**
 ```text
-change hero heading to "India's Ivy League for the AI Age"
+> change the hero background color to #1a1a1a
 ```
 
-The app auto-expands these into a full safe tool workflow.
+## Security & Safety
 
-Each website-generation run now uses a fresh output folder under `generated/` (for example `generated/scaler-com-20260507103045/`) instead of overwriting the previous run.
+- **Loop Protection:** Adaptive step budget with a hard limit to prevent infinite loops.
+- **Tool Sandbox:** Strict tool whitelist enforcement using Zod schemas. File writes are completely restricted to the `generated/` directory.
+- **Safety First:** No arbitrary shell execution. Homepage cloning is restricted to single pages (no recursive crawling or auth-bypass).
 
-## Security and Safety
+## Verification & Build
 
-- `MAX_STEPS = 25` loop protection.
-- Tool whitelist enforcement.
-- Tool argument schema validation with Zod.
-- Unknown tool handling: `Tool not available`.
-- File writes are restricted to `generated/`.
-- Core file generation uses `fs/promises` (no arbitrary shell write flow).
-- Homepage cloning only (no recursive crawling, no login/auth bypass scraping).
-
-## Verification
-
+To check for TypeScript errors and build the project:
 ```bash
 npm run check
 npm run build
 ```
-
-Then open generated output in browser:
-
-```bash
-open generated/scaler-academy-clone/index.html
-```
-
-Or run localhost preview through the agent tool for demo-friendly output.
-
-## Assignment 02 Submission Checklist
-
-- Public GitHub repository link
-- 2-3 minute YouTube demo (public or unlisted)
-- Live CLI run showing multi-step reasoning and tool execution
-- Browser output showing generated webpage clone
