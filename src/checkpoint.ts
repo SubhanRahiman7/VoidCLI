@@ -51,7 +51,7 @@ export function extractAssetsFromHtml(html: string, baseUrl: string): AssetBucke
     if (absolute) js.add(absolute);
   });
 
-  $("img, source").each((_, el) => {
+  $("img, source, video, audio, track").each((_, el) => {
     const src = $(el).attr("src");
     if (src) {
       const absolute = normalizeAssetUrl(src, baseUrl);
@@ -60,6 +60,11 @@ export function extractAssetsFromHtml(html: string, baseUrl: string): AssetBucke
     const dataSrc = $(el).attr("data-src") || $(el).attr("data-lazy-src");
     if (dataSrc) {
       const absolute = normalizeAssetUrl(dataSrc, baseUrl);
+      if (absolute) images.add(absolute);
+    }
+    const poster = $(el).attr("poster");
+    if (poster) {
+      const absolute = normalizeAssetUrl(poster, baseUrl);
       if (absolute) images.add(absolute);
     }
     const srcset = $(el).attr("srcset") || $(el).attr("data-srcset");
@@ -104,6 +109,10 @@ export function localPathForAsset(assetUrl: string, cloneRoot: string): string {
 
   if (ext === ".css") return `${assetRoot}/css/${basename || `${fallback}.css`}`;
   if (ext === ".js" || ext === ".mjs") return `${assetRoot}/js/${basename || `${fallback}.js`}`;
+  
+  const isMedia = [".mp4", ".webm", ".ogg", ".mov", ".mp3", ".wav"].includes(ext);
+  if (isMedia) return `${assetRoot}/media/${basename || `${fallback}${ext}`}`;
+
   return `${assetRoot}/images/${basename || `${fallback}.bin`}`;
 }
 
@@ -145,11 +154,16 @@ export function rewriteHtmlToLocalAssets(
     if (local) $(el).attr("src", local);
   });
 
-  $("img, source").each((_, el) => {
+  $("img, source, video, audio, track").each((_, el) => {
     const src = $(el).attr("src");
     if (src) {
       const local = toLocal(src);
       if (local) $(el).attr("src", local);
+    }
+    const poster = $(el).attr("poster");
+    if (poster) {
+      const local = toLocal(poster);
+      if (local) $(el).attr("poster", local);
     }
     const dataSrc = $(el).attr("data-src");
     if (dataSrc) {
