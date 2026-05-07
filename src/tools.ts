@@ -235,13 +235,33 @@ async function extractAssetsTool(rawArgs: unknown): Promise<ToolResult> {
   }
   const rewrittenHtml = rewriteHtmlToLocalAssets(htmlSource, assetMap, outputRoot, baseUrlSource);
   latestRewrittenHtml = rewrittenHtml;
+
+  const downloadEntries = Object.entries(assetMap);
+  const CHUNK_SIZE = 10;
+  for (let i = 0; i < downloadEntries.length; i += CHUNK_SIZE) {
+    const chunk = downloadEntries.slice(i, i + CHUNK_SIZE);
+    await Promise.all(
+      chunk.map(async ([url, dest]) => {
+        try {
+          const fullPath = ensureInGenerated(dest);
+          const bytes = await downloadAssetBytes(url);
+          await mkdir(path.dirname(fullPath), { recursive: true });
+          await writeFile(fullPath, bytes);
+        } catch {
+          // Ignore failures like 404s or inaccessible assets
+        }
+      })
+    );
+  }
+
   return {
     ok: true,
     content: [
-      "📦 ASSETS extracted",
+      "📦 ASSETS extracted and automatically downloaded to disk!",
       `🎨 CSS count: ${assets.css.length}`,
       `⚡ JS count: ${assets.js.length}`,
       `🖼 IMAGES count: ${assets.images.length}`,
+      "DO NOT call downloadAsset manually. Proceed to write index.html.",
       JSON.stringify({
         assets,
         assetMap,

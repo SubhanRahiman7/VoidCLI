@@ -41,6 +41,7 @@ Rules:
 4c) For checkpoint cloning, NEVER pass full HTML back into tool args.
     Use fetchPage first, then call extractAssets with html="__FETCH_CACHE_LATEST__".
 4d) After extractAssets, write index.html using content="__REWRITTEN_HTML_LATEST__".
+    Do not manually download assets one by one, extractAssets handles it automatically.
     Never inline huge HTML in tool args.
 5) Never include markdown, code fences, or extra text outside JSON.
 
@@ -53,8 +54,7 @@ Available tools:
 - startPreviewServer({ "path": "generated/<run-folder>", "port": 3000 })
 - fetchPage({ "url": "https://example.com" })
 - extractAssets({ "html": "__FETCH_CACHE_LATEST__", "baseUrl": "https://example.com", "outputRoot": "generated/<run-folder>" })
-- writeFile({ "path": "generated/<run-folder>/index.html", "content": "__REWRITTEN_HTML_LATEST__" })
-- downloadAsset({ "assetUrl": "https://...", "outputPath": "generated/<run-folder>/assets/..." })`;
+- writeFile({ "path": "generated/<run-folder>/index.html", "content": "__REWRITTEN_HTML_LATEST__" })`;
 
 function parseStepJson(modelText: string) {
   const trimmed = modelText.trim();
@@ -131,10 +131,9 @@ function expandUserPromptWithPersona(input: string, generationDir: string): stri
       "Use strict tool flow:",
       "1) fetchPage",
       `2) extractAssets with html="__FETCH_CACHE_LATEST__", outputRoot="${generationDir}"`,
-      `3) download assets into ${generationDir}/assets/`,
-      `4) write index.html with content="__REWRITTEN_HTML_LATEST__" at ${generationDir}/index.html`,
-      "5) verify with readFile/listDir",
-      "6) ensure localhost preview (port 3000)",
+      `3) write index.html with content="__REWRITTEN_HTML_LATEST__" at ${generationDir}/index.html`,
+      "4) verify with readFile/listDir",
+      "5) ensure localhost preview (port 3000)",
       "Do not crawl beyond the homepage."
     ].join("\n");
   }
@@ -163,14 +162,9 @@ function estimateInitialStepBudget(input: string): number {
 }
 
 function estimateBudgetFromAssetDensity(observeContent: string): number | null {
-  const css = Number(observeContent.match(/CSS count:\s*(\d+)/)?.[1] ?? "0");
-  const js = Number(observeContent.match(/JS count:\s*(\d+)/)?.[1] ?? "0");
-  const images = Number(observeContent.match(/IMAGES count:\s*(\d+)/)?.[1] ?? "0");
-  const total = css + js + images;
-  if (total <= 0) return null;
-  // Dense pages need more tool turns for downloading images
-  const recommended = 15 + Math.ceil(total * 1.5);
-  return Math.min(MAX_STEP_LIMIT, Math.max(8, recommended));
+  // Since we download in the background now, we don't need a massive step budget!
+  // We can just add a small buffer for safety.
+  return Math.min(MAX_STEP_LIMIT, 20);
 }
 
 export async function runAgent(userInput: string): Promise<AgentRunResult> {
